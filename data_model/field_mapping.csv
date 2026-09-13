@@ -1,0 +1,33 @@
+concept,demo_field,source_layer,source_field,editable_in_demo,domain
+Patient ID,PATID,PCORI/PCORnet,PATID,no,patient
+Stroke encounter,ENCOUNTERID,PCORI/PCORnet,ENCOUNTERID,no,episode
+Registry FIN,FIN,Stroke Universe,FIN,yes,episode
+Age,age,Stroke Universe / PCORI,Age / BIRTH_DATE,yes,patient
+Sex,sex,Stroke Universe / PCORI,Sex / SEX,yes,patient
+Race/ethnicity,race_ethnicity,Stroke Universe / PCORI,Race/Ethnicity / RACE/HISPANIC,yes,patient
+Rurality,ruca_code,PCORI local extension,RUCA_CODE,no,patient
+Stroke type,stroke_type,Stroke Universe / GWTG,Type / stroketype,yes,episode
+Stroke etiology,stroke_etiology,Stroke Universe / GWTG,Stroke Etiology / etiology,yes,episode
+Admission date,admit_date,PCORI/PCORnet,ADMIT_DATE,no,episode
+Discharge date,discharge_date,PCORI/PCORnet,DISCHARGE_DATE,no,episode
+Last known well,last_known_well,Stroke Universe / GWTG,LKW / lastknownwell,yes,acute_treatment
+Arrival time,arrival_datetime,Stroke Universe / GWTG,Arrival Date & Time / arrdt,yes,acute_treatment
+NIHSS admission,nihss_admit,Stroke Universe / GWTG,NIHSS on Admission / nihssscore,yes,severity_function
+NIHSS discharge,nihss_discharge,Stroke Universe,NIHSS at Discharge,yes,severity_function
+mRS admission,mrs_admit,Stroke Universe,mRS at Admission,yes,severity_function
+mRS discharge,mrs_discharge,Stroke Universe / GWTG,mRS at Discharge / rankindschtotal,yes,severity_function
+IV thrombolysis,iv_thrombolysis,Stroke Universe / GWTG,tPA/TNK / ivthroinit,yes,acute_treatment
+Thrombolytic agent,thrombolytic_agent,Stroke Universe / GWTG,tPA/TNK / thromboused,yes,acute_treatment
+Mechanical thrombectomy,thrombectomy,Stroke Universe / GWTG,Thrombectomy / merproc,yes,acute_treatment
+Door-to-needle minutes,door_to_needle_min,Stroke Universe,DTN,yes,acute_treatment
+Door-to-puncture minutes,door_to_puncture_min,Stroke Universe,DTP,yes,acute_treatment
+LDL,ldl,PCORI/PCORnet,LAB_RESULT_CM:no direct column; LOINC-derived,no,imaging_labs
+Glucose,glucose,PCORI/PCORnet,LAB_RESULT_CM:no direct column; LOINC-derived,no,imaging_labs
+Creatinine,creatinine,PCORI/PCORnet,LAB_RESULT_CM:no direct column; LOINC-derived,no,imaging_labs
+Hemorrhagic conversion,hemorrhagic_conversion,Stroke Universe,Hemorrhagic Conversion,yes,complications
+Discharge disposition,discharge_disposition,PCORI / Stroke Universe,DISCHARGE_DISPOSITION / D/C Location,yes,discharge
+30-day readmission,readmission_30d,EHR-derived outcome,ENCOUNTER-derived,no,utilization_outcomes
+30-day ED revisit,ed_revisit_30d,EHR-derived outcome,ENCOUNTER-derived,no,utilization_outcomes
+90-day mRS,mrs_90d,GWTG follow-up,fu_comprankinscore / fu_comprankin,yes,follow_up
+Follow-up completed,followup_completed,GWTG follow-up,fu_datefollowcomp,yes,follow_up
+Death within 90 days,mortality_90d,EHR-derived outcome,DEATH-derived,no,utilization_outcomes
