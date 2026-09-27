@@ -32,9 +32,18 @@ def test_treatment_logic():
 
 def test_followup_and_mortality_logic():
     combined = generate_demo_data(n=300, seed=3)["combined"]
-    dead = combined[combined["mortality_90d"]]
-    assert dead["mrs_90d"].eq(6).all()
-    assert (~dead["followup_completed"]).all()
+    dead_90d = combined[combined["mortality_90d"]]
+    in_hospital = combined[combined["death_in_hospital"]]
+
+    assert dead_90d["mrs_90d"].eq(6).all()
+    assert (~dead_90d["followup_completed"]).all()
+    assert in_hospital["mortality_90d"].all()
+    assert in_hospital["mrs_discharge"].eq(6).all()
+    assert in_hospital["registry_discharge_disposition"].eq("Expired").all()
+
+    post_discharge_deaths = dead_90d[~dead_90d["death_in_hospital"]]
+    if not post_discharge_deaths.empty:
+        assert post_discharge_deaths["registry_discharge_disposition"].ne("Expired").all()
 
 
 def test_dates_are_ordered():
