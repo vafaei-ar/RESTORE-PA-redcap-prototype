@@ -141,6 +141,7 @@ def generate_demo_data(
             + (0.10 if stroke_type == "SAH" else 0)
         )
         mortality_90d = bool(rng.random() < min(mortality_risk, 0.65))
+        death_in_hospital = bool(mortality_90d and rng.random() < 0.55)
 
         arrival = admit_date + pd.Timedelta(hours=float(rng.uniform(0.3, 8.0)))
         onset_to_arrival_h = float(rng.gamma(1.8, 1.7))
@@ -178,8 +179,8 @@ def generate_demo_data(
             and rng.random() < (0.045 + 0.004 * nihss)
         )
 
-        if mortality_90d:
-            registry_disposition = str(rng.choice(["Expired", "Hospice"], p=[0.72, 0.28]))
+        if death_in_hospital:
+            registry_disposition = "Expired"
             mrs_discharge = 6
             mrs_90d = 6
             followup_completed = False
@@ -187,7 +188,9 @@ def generate_demo_data(
             mrs_discharge = int(
                 np.clip(round(mrs_admit - rng.uniform(0, 2.2) + rng.normal(0, 0.7)), 0, 5)
             )
-            if nihss >= 12:
+            if mortality_90d and rng.random() < 0.35:
+                registry_disposition = "Hospice"
+            elif nihss >= 12:
                 registry_disposition = str(
                     rng.choice(
                         ["Inpatient rehab", "Skilled nursing facility", "Home"],
@@ -208,28 +211,37 @@ def generate_demo_data(
                         p=[0.78, 0.14, 0.08],
                     )
                 )
-            followup_completed = bool(rng.random() < 0.76)
-            mrs_90d = (
-                int(
-                    np.clip(
-                        round(mrs_discharge - rng.uniform(0, 1.2) + rng.normal(0, 0.6)),
-                        0,
-                        5,
+
+            if mortality_90d:
+                followup_completed = False
+                mrs_90d = 6
+            else:
+                followup_completed = bool(rng.random() < 0.76)
+                mrs_90d = (
+                    int(
+                        np.clip(
+                            round(
+                                mrs_discharge
+                                - rng.uniform(0, 1.2)
+                                + rng.normal(0, 0.6)
+                            ),
+                            0,
+                            5,
+                        )
                     )
+                    if followup_completed
+                    else np.nan
                 )
-                if followup_completed
-                else np.nan
-            )
 
         pcori_disposition, disposition_conflict = _pcori_disposition(
             registry_disposition, rng
         )
         readmission_30d = bool(
-            (not mortality_90d)
+            (not death_in_hospital)
             and rng.random() < (0.12 + 0.015 * max(mrs_discharge - 2, 0))
         )
         ed_revisit_30d = bool(
-            (not mortality_90d)
+            (not death_in_hospital)
             and rng.random() < (0.11 + 0.02 * max(mrs_discharge - 2, 0))
         )
 
@@ -293,6 +305,7 @@ def generate_demo_data(
                 "ed_revisit_30d": ed_revisit_30d,
                 "mrs_90d": mrs_90d,
                 "followup_completed": followup_completed,
+                "death_in_hospital": death_in_hospital,
                 "mortality_90d": mortality_90d,
                 "review_status": review_status,
             }
@@ -316,6 +329,7 @@ def generate_demo_data(
             "glucose",
             "creatinine",
             "pcori_discharge_disposition",
+            "death_in_hospital",
             "readmission_30d",
             "ed_revisit_30d",
             "mortality_90d",
