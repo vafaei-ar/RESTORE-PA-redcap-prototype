@@ -31,3 +31,11 @@ jobs:
 
       - name: Compile application
         run: python -m py_compile app/app.py synthetic_data/generate_demo_data.py
+
+      - name: Smoke-test Streamlit app
+        run: |
+          streamlit run app/app.py --server.headless true --server.port 8501 > /tmp/streamlit.log 2>&1 &
+          APP_PID=$!
+          sleep 8
+          curl --fail http://127.0.0.1:8501/_stcore/health
+          kill $APP_PID

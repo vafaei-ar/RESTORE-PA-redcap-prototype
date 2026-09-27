@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pandas as pd
 import streamlit as st
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from synthetic_data.generate_demo_data import generate_demo_data
+
 DATA_PATH = ROOT / "synthetic_data" / "outputs" / "combined_demo.parquet"
 MAPPING_PATH = ROOT / "data_model" / "field_mapping.csv"
 
@@ -15,13 +21,12 @@ st.set_page_config(page_title="RESTORE-PA Prototype", page_icon="🧠", layout="
 
 @st.cache_data
 def load_data() -> pd.DataFrame:
-    if not DATA_PATH.exists():
-        st.error(
-            "Synthetic data have not been generated yet. Run: "
-            "python synthetic_data/generate_demo_data.py"
-        )
-        st.stop()
-    return pd.read_parquet(DATA_PATH)
+    if DATA_PATH.exists():
+        return pd.read_parquet(DATA_PATH)
+
+    # Deployment-friendly fallback: generate the exact same seeded synthetic
+    # cohort in memory when no local output file is present.
+    return generate_demo_data(n=200, seed=20260913)["combined"]
 
 
 @st.cache_data
@@ -36,6 +41,10 @@ def yes_no(value: bool) -> str:
 def dashboard(df: pd.DataFrame) -> None:
     st.title("RESTORE-PA Stroke Registry Prototype")
     st.caption("Synthetic demonstration data only. No real patient data or PHI.")
+    st.info(
+        "Use this prototype to discuss workflow, field scope, provenance, and reports. "
+        "It is not a production clinical system."
+    )
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Stroke episodes", f"{len(df):,}")

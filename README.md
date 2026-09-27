@@ -60,11 +60,13 @@ RESTORE-PA-redcap-prototype/
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+# Optional: pre-generate local files
 python synthetic_data/generate_demo_data.py
+
 streamlit run app/app.py
 ```
 
-The generator creates 200 synthetic stroke episodes for about 180 synthetic patients by default. All identifiers are clearly synthetic and use the `SYN-` prefix.
+If no generated data file is present, the app automatically creates the same seeded 200-episode synthetic cohort in memory. This makes the prototype suitable for a clean clone or simple Streamlit deployment. All identifiers are clearly synthetic and use the `SYN-` prefix.
 
 ## What to show collaborators
 
@@ -86,6 +88,18 @@ A short demo can follow this sequence:
 - Keep imported PCORI/PCORnet fields read-only in the operational workflow.
 - Treat registry/GWTG values as reviewable/editable according to the agreed production scope.
 - Keep the repository synthetic-only.
+
+## Deployment-ready behavior
+
+The app does not require committed data files. It can start from the repository alone and generate its synthetic cohort in memory. The default Streamlit configuration uses a light theme for collaborator meetings.
+
+For an institutional or public demo deployment, point the Streamlit entry point to:
+
+```text
+app/app.py
+```
+
+No secrets, API credentials, or real clinical data are required.
 
 ## Validation
 
