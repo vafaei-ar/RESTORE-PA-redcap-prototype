@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# RESTORE-PA generated demo data (reproducible; do not commit)
+synthetic_data/outputs/
+*.parquet
+*.feather
+*.sqlite
+*.db
