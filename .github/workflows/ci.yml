@@ -24,7 +24,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run synthetic-data tests
-        run: pytest -q
+        run: python -m pytest -q
 
       - name: Generate demo data
         run: python synthetic_data/generate_demo_data.py --n 50 --seed 123
