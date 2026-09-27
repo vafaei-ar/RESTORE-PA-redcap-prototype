@@ -29,6 +29,7 @@ PCORI discharge disposition,pcori_discharge_disposition,PCORI/PCORnet,DISCHARGE_
 Registry discharge disposition,registry_discharge_disposition,Stroke Universe / GWTG,D/C Location / dschstat,yes,discharge
 Disposition source disagreement,disposition_conflict,Derived comparison,PCORI vs registry disposition comparison,no,workflow
 Registry review status,review_status,Derived workflow,source conflict and follow-up status,no,workflow
+In-hospital death,death_in_hospital,EHR-derived outcome,DEATH plus encounter timing-derived,no,utilization_outcomes
 30-day readmission,readmission_30d,EHR-derived outcome,ENCOUNTER-derived,no,utilization_outcomes
 30-day ED revisit,ed_revisit_30d,EHR-derived outcome,ENCOUNTER-derived,no,utilization_outcomes
 90-day mRS,mrs_90d,GWTG follow-up,fu_comprankinscore / fu_comprankin,yes,follow_up
