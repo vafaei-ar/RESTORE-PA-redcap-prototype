@@ -1,0 +1,40 @@
+project: RESTORE-PA REDCap prototype
+version: 0.1
+synthetic_only: true
+
+keys:
+  patient: PATID
+  stroke_episode: ENCOUNTERID
+  registry_episode: FIN
+
+source_layers:
+  pcori_pcnet:
+    editable: false
+    purpose: EHR-derived context imported or synchronized into REDCap
+  stroke_universe:
+    editable: true
+    purpose: Current operational Stroke Program registry fields
+  gwtg:
+    editable: true
+    purpose: Selected GWTG admission and follow-up abstraction fields
+  manual:
+    editable: true
+    purpose: Registry-reviewed or newly entered information
+
+principles:
+  - Never overwrite the source PCORI/PCORnet value with a registry-entered value.
+  - Preserve provenance when the same concept appears in multiple sources.
+  - Model one patient as potentially having multiple stroke episodes.
+  - Anchor episode-level variables to the selected stroke encounter.
+  - Keep the demo synthetic-only; no real PHI or clinical identifiers may be committed.
+
+prototype_domains:
+  - patient
+  - episode
+  - severity_function
+  - acute_treatment
+  - imaging_labs
+  - complications
+  - discharge
+  - utilization_outcomes
+  - follow_up
