@@ -6,7 +6,9 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from app.registry_store import (
+# Import the sibling module directly. Streamlit runs app/app.py as a script,
+# so "app" is not reliably importable as a package.
+from registry_store import (
     DISPOSITIONS, STROKE_TYPES, create_episode, update_episode
 )
 
