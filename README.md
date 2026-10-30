@@ -57,7 +57,10 @@ RESTORE-PA-redcap-prototype/
 
 ## Quick start
 
+Run these commands from your actual clone directory. For example:
+
 ```bash
+cd ~/works/repos/RESTORE-PA-redcap-prototype
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
