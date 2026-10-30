@@ -210,27 +210,29 @@ def _case_listing(filtered: pd.DataFrame) -> pd.DataFrame:
 
 
 def _source_overview(row: pd.Series) -> pd.DataFrame:
+    linked = pd.notna(row.pcori_discharge_disposition)
     return pd.DataFrame(
         [
             {
                 "Concept": "Patient identifier",
-                "PCORI/PCORnet": row.PATID,
-                "Registry/GWTG": "Synthetic registry linkage",
-                "Status": "Linked",
+                "PCORI/PCORnet": row.PATID if linked else "Not linked",
+                "Registry/GWTG": row.PATID,
+                "Status": "Linked" if linked else "Registry only",
             },
             {
                 "Concept": "Stroke episode identifier",
-                "PCORI/PCORnet": row.ENCOUNTERID,
+                "PCORI/PCORnet": row.ENCOUNTERID if linked else "Not linked",
                 "Registry/GWTG": row.FIN,
-                "Status": "Linked",
+                "Status": "Linked" if linked else "Registry only",
             },
             {
                 "Concept": "Discharge disposition",
-                "PCORI/PCORnet": row.pcori_discharge_disposition,
+                "PCORI/PCORnet": (
+                    row.pcori_discharge_disposition if linked else "Not linked"
+                ),
                 "Registry/GWTG": row.registry_discharge_disposition,
                 "Status": (
-                    "No EHR linkage"
-                    if pd.isna(row.pcori_discharge_disposition)
+                    "Not linked" if not linked
                     else "Needs review" if row.disposition_conflict else "Concordant"
                 ),
             },
@@ -398,17 +400,23 @@ def case_browser(df: pd.DataFrame) -> None:
             )
 
     with ehr_tab:
-        st.info("Imported values are read-only in the proposed workflow.")
-        st.dataframe(
-            _ehr_details(row),
-            hide_index=True,
-            use_container_width=True,
-            height=515,
-            column_config={
-                "Field": st.column_config.TextColumn("Field", width="medium"),
-                "Value": st.column_config.TextColumn("Value", width="large"),
-            },
-        )
+        if pd.isna(row.pcori_discharge_disposition):
+            st.warning(
+                "No EHR episode has been linked to this registry-only entry. "
+                "Imported PCORI/PCORnet fields and outcomes are unavailable."
+            )
+        else:
+            st.info("Imported values are read-only in the proposed workflow.")
+            st.dataframe(
+                _ehr_details(row),
+                hide_index=True,
+                use_container_width=True,
+                height=515,
+                column_config={
+                    "Field": st.column_config.TextColumn("Field", width="medium"),
+                    "Value": st.column_config.TextColumn("Value", width="large"),
+                },
+            )
 
     with registry_tab:
         st.success("Editable demonstration fields")
