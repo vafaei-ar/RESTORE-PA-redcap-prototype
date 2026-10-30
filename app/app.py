@@ -175,12 +175,12 @@ def dashboard(df: pd.DataFrame) -> None:
                     "90-day mortality",
                     "Source disagreement",
                 ],
-                "Rate": [
-                    df.readmission_30d.mean(),
-                    df.ed_revisit_30d.mean(),
-                    df.death_in_hospital.mean(),
-                    df.mortality_90d.mean(),
-                    df.disposition_conflict.mean(),
+                "Rate (%)": [
+                    100 * df.readmission_30d.mean(),
+                    100 * df.ed_revisit_30d.mean(),
+                    100 * df.death_in_hospital.mean(),
+                    100 * df.mortality_90d.mean(),
+                    100 * df.disposition_conflict.mean(),
                 ],
             }
         )
@@ -191,12 +191,8 @@ def dashboard(df: pd.DataFrame) -> None:
             height=245,
             column_config={
                 "Outcome": st.column_config.TextColumn("Outcome", width="large"),
-                "Rate": st.column_config.ProgressColumn(
-                    "Rate",
-                    min_value=0.0,
-                    max_value=1.0,
-                    format="percent",
-                    width="medium",
+                "Rate (%)": st.column_config.NumberColumn(
+                    "Rate", format="%.1f%%", width="small"
                 ),
             },
         )
@@ -236,14 +232,14 @@ def _source_overview(row: pd.Series) -> pd.DataFrame:
             {
                 "Concept": "Patient identifier",
                 "PCORI/PCORnet": row.PATID,
-                "Registry/GWTG": "Registry patient linkage",
-                "Status": "Linked in demo",
+                "Registry/GWTG": "Synthetic registry linkage",
+                "Status": "Linked",
             },
             {
                 "Concept": "Stroke episode identifier",
                 "PCORI/PCORnet": row.ENCOUNTERID,
                 "Registry/GWTG": row.FIN,
-                "Status": "Linked in demo",
+                "Status": "Linked",
             },
             {
                 "Concept": "Discharge disposition",
