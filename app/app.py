@@ -480,11 +480,6 @@ def case_browser(df: pd.DataFrame) -> None:
                     key=key_prefix + "disposition",
                 )
 
-            note = st.text_area(
-                "Registry reviewer note",
-                key=key_prefix + "note",
-                placeholder="Optional note about abstraction or source reconciliation",
-            )
             submitted = st.form_submit_button("Save demo edit", type="primary")
 
         if submitted:
