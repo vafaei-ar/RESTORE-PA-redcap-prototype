@@ -128,7 +128,7 @@ def test_invalid_treatment_for_ich_rejected(cohort, entry):
 
 def test_invalid_mrs_or_agent_rejected(cohort, entry):
     entry["mrs_discharge"] = 6
-    with pytest.raises(ValueError, match="Expired"):
+    with pytest.raises(ValueError, match="expired discharge"):
         create_episode(cohort, entry=entry)
 
     entry["mrs_discharge"] = 1
