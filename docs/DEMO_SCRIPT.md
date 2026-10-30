@@ -31,13 +31,21 @@ Go to **Reports > Source disagreements**, copy a PATID or FIN, and search for th
 
 The page will show both discharge-disposition values and a warning. The intended workflow is to let the registry reviewer resolve the operational registry value without overwriting the original imported value.
 
-## 4. Show multiple episodes
+## 4. Demonstrate registry data entry
+
+Open **Registry Entry > Create stroke episode**. Create a new **synthetic** patient or add an episode to an existing synthetic patient. Enter stroke type, severity, treatment, discharge and optional 90-day follow-up. Use the **Create synthetic stroke episode** button.
+
+Return to **Case Browser** and find the new synthetic episode. It appears in the session dataset but is marked **Needs EHR linkage**: the demo deliberately does not invent imported PCORI values for a manually entered registry record.
+
+In **Registry Entry > Update registry / follow-up**, update the 90-day mRS and save. Reopen the case to verify the change.
+
+## 5. Show multiple episodes
 
 Search for a synthetic patient who has more than one episode. The case page displays the patient's other episodes.
 
 This demonstrates why patient-level identity and episode-level stroke data should be modeled separately.
 
-## 5. Show registry work queues
+## 6. Show registry work queues
 
 Under **Reports**, demonstrate:
 
@@ -52,7 +60,7 @@ Under **Reports**, demonstrate:
 
 These reports are examples for discussion, not finalized RESTORE-PA requirements.
 
-## 6. End with workflow and data dictionary
+## 7. End with workflow and data dictionary
 
 Use **Workflow** to summarize the proposed process and **Data Dictionary** to discuss which fields should be included in the production REDCap project.
 
@@ -66,3 +74,7 @@ The prototype is intended to make these decisions easier:
 4. Which follow-up fields should be actively tracked?
 5. Which reports or work queues are needed by the Stroke Program?
 6. How should source disagreements be reviewed and documented?
+
+## Session reset
+
+Before a second collaborator demonstration, use **Reset demo entries** in the sidebar. It restores the 200-episode seeded synthetic dataset. Changes are kept only in the current Streamlit browser session and are not saved to disk.

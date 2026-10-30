@@ -8,6 +8,7 @@ The prototype is intended for collaborator discussion and workflow design before
 
 - display EHR-derived and registry-entered data for the same stroke episode;
 - preserve source provenance (PCORI/PCORnet, Stroke Universe, GWTG, manual registry entry);
+- create synthetic stroke registry entries (new patient or repeat episode), and update admission, treatment, discharge and follow-up fields;
 - allow registry fields to be reviewed or edited while keeping imported EHR fields read-only;
 - show source disagreements without overwriting the original imported value;
 - support patients with more than one stroke episode;
@@ -75,9 +76,11 @@ A short demo can follow this sequence:
 1. **Dashboard**: show cohort composition and the registry work queue.
 2. **Case Browser**: open a case and compare read-only PCORI/PCORnet values with editable registry/GWTG fields.
 3. **Source disagreement example**: open a case marked `Needs source review` and show how both source values are preserved.
-4. **Multiple episodes**: search a synthetic patient with more than one episode and show the patient-to-many-episodes structure.
-5. **Reports**: show follow-up due, source disagreements, treatment cohorts, rural cases, and readmissions.
-6. **Workflow / Data Dictionary**: use these pages to discuss how the prototype would translate into REDCap.
+4. **Registry Entry**: create a new synthetic stroke episode, optionally linked to an existing synthetic patient. Enter NIHSS/mRS, thrombolysis/EVT, discharge, and follow-up.
+5. **Case Browser**: confirm the new episode appears as "Needs EHR linkage" without fabricated imported EHR values.
+6. **Registry Entry > Update registry / follow-up**: complete a 90-day mRS and verify that the edited values appear in the case browser.
+7. **Reports**: show EHR-linkage queue, follow-up due, source disagreements, treatment cohorts, rural cases, and readmissions.
+8. **Workflow / Data Dictionary**: use these pages to discuss how the prototype would translate into REDCap.
 
 ## Design principles
 
@@ -88,6 +91,19 @@ A short demo can follow this sequence:
 - Keep imported PCORI/PCORnet fields read-only in the operational workflow.
 - Treat registry/GWTG values as reviewable/editable according to the agreed production scope.
 - Keep the repository synthetic-only.
+
+## Registry entry demonstration (v0.4)
+
+The new **Registry Entry** page supports two operations:
+
+- **Create stroke episode**: create a brand-new synthetic patient and stroke episode, or add another episode to an existing synthetic patient. Enter admission/discharge dates, stroke type and etiology, NIHSS/mRS, IV thrombolysis, thrombectomy, discharge disposition, and 90-day follow-up.
+- **Update registry / follow-up**: edit existing synthetic registry fields while keeping imported PCORI/PCORnet values unchanged.
+
+The Case Browser's **Registry review** tab also now saves edits to the session dataset. New registry-only episodes are marked **Needs EHR linkage**. The imported EHR information remains unavailable rather than being fabricated.
+
+**Persistence:** Changes are stored in Streamlit session state. They remain visible across pages and application reruns in the same browser session, but are not saved to disk or shared with another session. Use **Reset demo entries** in the sidebar to restore the seeded cohort.
+
+**Not production-ready:** This workflow has no approved user authentication, longitudinal audit history, database persistence, REDCap import/export, or real patient-data integration. Do not enter PHI into any demo controls.
 
 ## Deployment-ready behavior
 
@@ -109,7 +125,7 @@ Run:
 pytest -q
 ```
 
-The tests check identifier safety, treatment logic, date ordering, repeat-patient consistency, source-conflict flags, reproducibility, and follow-up/mortality rules.
+The tests check identifier safety, treatment logic, date ordering, repeat-patient consistency, source-conflict flags, reproducibility, follow-up/mortality rules, registry entry validation, preservation of imported EHR fields, and app rendering.
 
 ## Current status
 
