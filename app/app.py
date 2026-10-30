@@ -110,8 +110,8 @@ def dashboard(df: pd.DataFrame) -> None:
     r2 = st.columns(4)
     r2[0].metric("IV thrombolysis", f"{df.iv_thrombolysis.mean():.1%}")
     r2[1].metric("Thrombectomy", f"{df.thrombectomy.mean():.1%}")
-    r2[2].metric("30-day readmission", f"{known_rate(df, "readmission_30d"):.1%}")
-    r2[3].metric("Source disagreement", f"{df.disposition_conflict.mean():.1%}")
+    r2[2].metric("Readmission (30 d)", f"{known_rate(df, "readmission_30d"):.1%}")
+    r2[3].metric("Source conflicts", f"{df.disposition_conflict.mean():.1%}")
 
     st.divider()
 
@@ -139,16 +139,7 @@ def dashboard(df: pd.DataFrame) -> None:
             .rename_axis("Status")
             .reset_index(name="Cases")
         )
-        st.dataframe(
-            review,
-            hide_index=True,
-            use_container_width=True,
-            height=175,
-            column_config={
-                "Status": st.column_config.TextColumn("Status", width="large"),
-                "Cases": st.column_config.NumberColumn("Cases", width="small"),
-            },
-        )
+        st.table(review.set_index("Status"))
         st.caption(
             "The queue separates source reconciliation from post-discharge follow-up."
         )
@@ -164,16 +155,7 @@ def dashboard(df: pd.DataFrame) -> None:
             .rename_axis("Disposition")
             .reset_index(name="Cases")
         )
-        st.dataframe(
-            disposition,
-            hide_index=True,
-            use_container_width=True,
-            height=245,
-            column_config={
-                "Disposition": st.column_config.TextColumn("Disposition", width="large"),
-                "Cases": st.column_config.NumberColumn("Cases", width="small"),
-            },
-        )
+        st.table(disposition.set_index("Disposition"))
 
     with right:
         st.subheader("Operational outcomes")
@@ -195,18 +177,8 @@ def dashboard(df: pd.DataFrame) -> None:
                 ],
             }
         )
-        st.dataframe(
-            metrics,
-            hide_index=True,
-            use_container_width=True,
-            height=245,
-            column_config={
-                "Outcome": st.column_config.TextColumn("Outcome", width="large"),
-                "Rate (%)": st.column_config.NumberColumn(
-                    "Rate", format="%.1f%%", width="small"
-                ),
-            },
-        )
+        metrics["Rate"] = metrics["Rate (%)"].map(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+        st.table(metrics[["Outcome", "Rate"]].set_index("Outcome"))
 
 
 def _case_listing(filtered: pd.DataFrame) -> pd.DataFrame:
@@ -682,45 +654,33 @@ def reports(df: pd.DataFrame) -> None:
 def workflow() -> None:
     st.title("Proposed Workflow")
     st.caption(
-        "The prototype keeps imported EHR context and registry abstraction connected "
-        "without erasing source provenance."
+        "A practical sequence for linking EHR context with registry abstraction."
     )
+    st.markdown(
+        """
+**1. Identify the stroke episode.** Link the patient and episode across
+PCORI/PCORnet and the operational registry using approved identifiers and
+encounter/date context.
 
-    steps = [
-        (
-            "1. Identify the stroke episode",
-            "Link the patient and episode across PCORI/PCORnet and the operational registry "
-            "using approved identifiers and encounter/date context.",
-        ),
-        (
-            "2. Import selected EHR context",
-            "Synchronize only the selected stroke-relevant PCORI/PCORnet values needed for "
-            "review and reporting; keep them read-only.",
-        ),
-        (
-            "3. Enter or update registry/GWTG fields",
-            "Stroke Program staff can create a registry episode or update admission, "
-            "treatment, discharge, and follow-up data through the Registry Entry page.",
-        ),
-        (
-            "4. Reconcile without overwriting provenance",
-            "When sources disagree, display both values. Resolve the registry value while "
-            "preserving the original imported EHR value.",
-        ),
-        (
-            "5. Follow cases and report",
-            "Use work queues for missing follow-up, source disagreements, treatment cohorts, "
-            "rural cases, and utilization outcomes.",
-        ),
-    ]
-    for heading, body in steps:
-        with st.container(border=True):
-            st.markdown(f"**{heading}**")
-            st.write(body)
+**2. Import selected EHR context.** Synchronize only the selected
+stroke-relevant PCORI/PCORnet values needed for review and reporting.
+Keep these source fields read-only.
 
+**3. Enter or update registry fields.** Stroke Program staff use
+**Registry Entry** to create episodes and record stroke type, severity,
+treatment, discharge and follow-up.
+
+**4. Reconcile sources.** When the same concept appears in both sources,
+display both values. Preserve imported EHR values when the registry value
+changes.
+
+**5. Review work queues and reports.** Identify incomplete follow-up,
+source disagreements, cases awaiting EHR linkage and operational outcomes.
+"""
+    )
     st.info(
-        "This prototype demonstrates workflow and field behavior only. It is not a "
-        "production REDCap implementation and contains no real patient data."
+        "This is a synthetic workflow demonstration, not production REDCap. "
+        "No real patient data are included."
     )
 
 
