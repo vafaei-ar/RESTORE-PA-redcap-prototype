@@ -245,7 +245,7 @@ def _source_overview(row: pd.Series) -> pd.DataFrame:
 
 
 def _ehr_details(row: pd.Series) -> pd.DataFrame:
-    return pd.DataFrame(
+    details = pd.DataFrame(
         {
             "Field": [
                 "PATID",
@@ -285,6 +285,12 @@ def _ehr_details(row: pd.Series) -> pd.DataFrame:
             ],
         }
     )
+    # Field/Value is a presentation table, not a typed clinical dataset.
+    # Keeping all display values as strings avoids mixed int/float/text
+    # serialization failures in Streamlit's Arrow transport.
+    details["Value"] = details["Value"].astype("string")
+    return details
+
 
 
 def case_browser(df: pd.DataFrame) -> None:
@@ -312,7 +318,7 @@ def case_browser(df: pd.DataFrame) -> None:
     st.dataframe(
         _case_listing(filtered),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         height=300,
         column_config={
             "Patient": st.column_config.TextColumn("Patient", width="medium"),
@@ -379,7 +385,7 @@ def case_browser(df: pd.DataFrame) -> None:
         st.dataframe(
             _source_overview(row),
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             height=175,
             column_config={
                 "Concept": st.column_config.TextColumn("Concept", width="medium"),
@@ -414,7 +420,7 @@ def case_browser(df: pd.DataFrame) -> None:
             st.dataframe(
                 _ehr_details(row),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 height=515,
                 column_config={
                     "Field": st.column_config.TextColumn("Field", width="medium"),
@@ -547,7 +553,7 @@ def case_browser(df: pd.DataFrame) -> None:
                     "registry_discharge_disposition": "Registry disposition",
                 }
             )
-            st.dataframe(other, hide_index=True, use_container_width=True)
+            st.dataframe(other, hide_index=True, width="stretch")
 
 
 REPORT_INFO = {
@@ -629,7 +635,7 @@ def reports(df: pd.DataFrame) -> None:
     st.dataframe(
         display,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         height=430,
         column_config={
             "Patient": st.column_config.TextColumn("Patient", width="medium"),
@@ -736,7 +742,7 @@ def data_dictionary(mapping: pd.DataFrame) -> None:
             ]
         ],
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         height=520,
         column_config={
             "Concept": st.column_config.TextColumn("Concept", width="medium"),
