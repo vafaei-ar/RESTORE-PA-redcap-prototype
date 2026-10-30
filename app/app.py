@@ -16,7 +16,44 @@ from synthetic_data.generate_demo_data import generate_demo_data
 DATA_PATH = ROOT / "synthetic_data" / "outputs" / "combined_demo.parquet"
 MAPPING_PATH = ROOT / "data_model" / "field_mapping.csv"
 
-st.set_page_config(page_title="RESTORE-PA Prototype", page_icon="🧠", layout="wide")
+st.set_page_config(
+    page_title="RESTORE-PA Prototype",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+def apply_ui_style() -> None:
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 2.1rem;
+            padding-bottom: 2.5rem;
+        }
+        div[data-testid="stMetric"] {
+            border: 1px solid rgba(49, 51, 63, 0.12);
+            border-radius: 0.65rem;
+            padding: 0.75rem 0.85rem;
+            min-height: 6.0rem;
+            background: rgba(250, 250, 250, 0.55);
+        }
+        div[data-testid="stMetricLabel"] p {
+            font-size: 0.92rem;
+            line-height: 1.15rem;
+        }
+        div[data-testid="stMetricValue"] {
+            font-size: 1.65rem;
+        }
+        .small-muted {
+            color: #667085;
+            font-size: 0.90rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_data
@@ -24,8 +61,6 @@ def load_data() -> pd.DataFrame:
     if DATA_PATH.exists():
         return pd.read_parquet(DATA_PATH)
 
-    # Deployment-friendly fallback: generate the exact same seeded synthetic
-    # cohort in memory when no local output file is present.
     return generate_demo_data(n=200, seed=20260913)["combined"]
 
 
@@ -38,6 +73,12 @@ def yes_no(value: bool) -> str:
     return "Yes" if bool(value) else "No"
 
 
+def date_only(value) -> str:
+    if pd.isna(value):
+        return ""
+    return pd.Timestamp(value).strftime("%Y-%m-%d")
+
+
 def dashboard(df: pd.DataFrame) -> None:
     st.title("RESTORE-PA Stroke Registry Prototype")
     st.caption("Synthetic demonstration data only. No real patient data or PHI.")
@@ -46,36 +87,83 @@ def dashboard(df: pd.DataFrame) -> None:
         "It is not a production clinical system."
     )
 
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("Stroke episodes", f"{len(df):,}")
-    c2.metric("Synthetic patients", f"{df.PATID.nunique():,}")
-    c3.metric("Ischemic stroke", f"{(df.stroke_type == 'Ischemic stroke').mean():.1%}")
-    c4.metric("IV thrombolysis", f"{df.iv_thrombolysis.mean():.1%}")
-    c5.metric("Thrombectomy", f"{df.thrombectomy.mean():.1%}")
-    c6.metric("90-day follow-up", f"{df.followup_completed.mean():.1%}")
+    # Two rows of four metrics are intentionally used instead of a six-across row.
+    # This keeps labels and values readable on normal laptop screens and in print/PDF.
+    r1 = st.columns(4)
+    r1[0].metric("Stroke episodes", f"{len(df):,}")
+    r1[1].metric("Synthetic patients", f"{df.PATID.nunique():,}")
+    r1[2].metric(
+        "Ischemic stroke",
+        f"{(df.stroke_type == 'Ischemic stroke').mean():.1%}",
+    )
+    r1[3].metric("90-day follow-up", f"{df.followup_completed.mean():.1%}")
 
-    review = df["review_status"].value_counts().rename_axis("Status").to_frame("Cases")
-    left, right = st.columns([1.3, 1])
+    r2 = st.columns(4)
+    r2[0].metric("IV thrombolysis", f"{df.iv_thrombolysis.mean():.1%}")
+    r2[1].metric("Thrombectomy", f"{df.thrombectomy.mean():.1%}")
+    r2[2].metric("30-day readmission", f"{df.readmission_30d.mean():.1%}")
+    r2[3].metric("Source disagreement", f"{df.disposition_conflict.mean():.1%}")
+
+    st.divider()
+
+    left, right = st.columns([1.15, 0.85])
     with left:
         st.subheader("Case mix")
         case_mix = (
-            df["stroke_type"].value_counts().rename_axis("Stroke type").to_frame("Cases")
+            df["stroke_type"]
+            .replace({"Ischemic stroke": "Ischemic"})
+            .value_counts()
+            .rename_axis("Stroke type")
+            .to_frame("Cases")
         )
         st.bar_chart(case_mix)
+
     with right:
         st.subheader("Registry work queue")
-        st.dataframe(review, use_container_width=True)
+        queue_order = ["Needs source review", "Follow-up due", "Complete"]
+        review = (
+            df["review_status"]
+            .value_counts()
+            .reindex(queue_order, fill_value=0)
+            .rename_axis("Status")
+            .reset_index(name="Cases")
+        )
+        st.dataframe(
+            review,
+            hide_index=True,
+            use_container_width=True,
+            height=175,
+            column_config={
+                "Status": st.column_config.TextColumn("Status", width="large"),
+                "Cases": st.column_config.NumberColumn("Cases", width="small"),
+            },
+        )
+        st.caption(
+            "The queue separates source reconciliation from post-discharge follow-up."
+        )
+
+    st.divider()
 
     left, right = st.columns(2)
     with left:
         st.subheader("Discharge disposition")
-        st.dataframe(
+        disposition = (
             df["registry_discharge_disposition"]
             .value_counts()
             .rename_axis("Disposition")
-            .to_frame("Cases"),
-            use_container_width=True,
+            .reset_index(name="Cases")
         )
+        st.dataframe(
+            disposition,
+            hide_index=True,
+            use_container_width=True,
+            height=245,
+            column_config={
+                "Disposition": st.column_config.TextColumn("Disposition", width="large"),
+                "Cases": st.column_config.NumberColumn("Cases", width="small"),
+            },
+        )
+
     with right:
         st.subheader("Operational outcomes")
         metrics = pd.DataFrame(
@@ -96,18 +184,133 @@ def dashboard(df: pd.DataFrame) -> None:
                 ],
             }
         )
-        metrics["Rate"] = metrics["Rate"].map(lambda x: f"{x:.1%}")
-        st.dataframe(metrics, hide_index=True, use_container_width=True)
+        st.dataframe(
+            metrics,
+            hide_index=True,
+            use_container_width=True,
+            height=245,
+            column_config={
+                "Outcome": st.column_config.TextColumn("Outcome", width="large"),
+                "Rate": st.column_config.ProgressColumn(
+                    "Rate",
+                    min_value=0.0,
+                    max_value=1.0,
+                    format="percent",
+                    width="medium",
+                ),
+            },
+        )
+
+
+def _case_listing(filtered: pd.DataFrame) -> pd.DataFrame:
+    out = filtered[
+        [
+            "synthetic_patient_name",
+            "PATID",
+            "FIN",
+            "stroke_type",
+            "admit_date",
+            "nihss_admit",
+            "registry_discharge_disposition",
+            "review_status",
+        ]
+    ].copy()
+    out["admit_date"] = pd.to_datetime(out["admit_date"]).dt.strftime("%Y-%m-%d")
+    return out.rename(
+        columns={
+            "synthetic_patient_name": "Patient",
+            "PATID": "PATID",
+            "FIN": "FIN",
+            "stroke_type": "Stroke type",
+            "admit_date": "Admission",
+            "nihss_admit": "NIHSS",
+            "registry_discharge_disposition": "Registry disposition",
+            "review_status": "Review status",
+        }
+    )
+
+
+def _source_overview(row: pd.Series) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "Concept": "Patient identifier",
+                "PCORI/PCORnet": row.PATID,
+                "Registry/GWTG": "Registry patient linkage",
+                "Status": "Linked in demo",
+            },
+            {
+                "Concept": "Stroke episode identifier",
+                "PCORI/PCORnet": row.ENCOUNTERID,
+                "Registry/GWTG": row.FIN,
+                "Status": "Linked in demo",
+            },
+            {
+                "Concept": "Discharge disposition",
+                "PCORI/PCORnet": row.pcori_discharge_disposition,
+                "Registry/GWTG": row.registry_discharge_disposition,
+                "Status": (
+                    "Needs review" if row.disposition_conflict else "Concordant"
+                ),
+            },
+        ]
+    )
+
+
+def _ehr_details(row: pd.Series) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Field": [
+                "PATID",
+                "ENCOUNTERID",
+                "Admission date",
+                "Discharge date",
+                "Age",
+                "Sex",
+                "Race/ethnicity",
+                "RUCA",
+                "LDL",
+                "Glucose",
+                "Creatinine",
+                "Discharge disposition",
+                "In-hospital death",
+                "30-day readmission",
+                "30-day ED revisit",
+                "90-day mortality",
+            ],
+            "Value": [
+                row.PATID,
+                row.ENCOUNTERID,
+                date_only(row.admit_date),
+                date_only(row.discharge_date),
+                int(row.age),
+                row.sex,
+                row.race_ethnicity,
+                int(row.ruca_code),
+                row.ldl,
+                row.glucose,
+                row.creatinine,
+                row.pcori_discharge_disposition,
+                yes_no(row.death_in_hospital),
+                yes_no(row.readmission_30d),
+                yes_no(row.ed_revisit_30d),
+                yes_no(row.mortality_90d),
+            ],
+        }
+    )
 
 
 def case_browser(df: pd.DataFrame) -> None:
     st.title("Case Browser")
     st.caption(
-        "PCORI/PCORnet values are shown as imported/read-only. Registry values can be "
-        "reviewed or edited in this demonstration session."
+        "Review one stroke episode at a time. Imported PCORI/PCORnet values remain "
+        "read-only; registry/GWTG values can be reviewed or edited."
     )
 
-    filter_text = st.text_input("Search synthetic name, PATID, ENCOUNTERID, or FIN")
+    filter_text = st.text_input(
+        "Search patient, PATID, ENCOUNTERID, or FIN",
+        placeholder="Example: SYN-00012 or SYN-FIN-100019",
+    )
     filtered = df.copy()
     if filter_text:
         q = filter_text.lower().strip()
@@ -120,155 +323,171 @@ def case_browser(df: pd.DataFrame) -> None:
         filtered = filtered[mask]
 
     st.dataframe(
-        filtered[
-            [
-                "synthetic_patient_name",
-                "PATID",
-                "FIN",
-                "stroke_type",
-                "admit_date",
-                "nihss_admit",
-                "registry_discharge_disposition",
-                "review_status",
-            ]
-        ],
+        _case_listing(filtered),
         hide_index=True,
         use_container_width=True,
+        height=300,
+        column_config={
+            "Patient": st.column_config.TextColumn("Patient", width="medium"),
+            "PATID": st.column_config.TextColumn("PATID", width="small"),
+            "FIN": st.column_config.TextColumn("FIN", width="small"),
+            "Stroke type": st.column_config.TextColumn("Stroke type", width="medium"),
+            "Admission": st.column_config.TextColumn("Admission", width="small"),
+            "NIHSS": st.column_config.NumberColumn("NIHSS", width="small"),
+            "Registry disposition": st.column_config.TextColumn(
+                "Registry disposition", width="medium"
+            ),
+            "Review status": st.column_config.TextColumn(
+                "Review status", width="medium"
+            ),
+        },
     )
 
     if filtered.empty:
+        st.warning("No cases match the current search.")
         return
 
     selected = st.selectbox(
         "Open case",
         filtered.index,
         format_func=lambda idx: (
-            f"{filtered.loc[idx, 'synthetic_patient_name']} — "
-            f"{filtered.loc[idx, 'stroke_type']} — "
-            f"{filtered.loc[idx, 'admit_date'].date()}"
+            f"{filtered.loc[idx, 'synthetic_patient_name']} | "
+            f"{filtered.loc[idx, 'stroke_type']} | "
+            f"{pd.Timestamp(filtered.loc[idx, 'admit_date']).date()}"
         ),
     )
     row = filtered.loc[selected]
-
     patient_episodes = df[df.PATID == row.PATID].sort_values("admit_date")
+
+    st.subheader("Episode summary")
+    summary = st.columns(4)
+    summary[0].metric("NIHSS admission", int(row.nihss_admit))
+    summary[1].metric("mRS discharge", int(row.mrs_discharge))
+    summary[2].metric("IV thrombolysis", yes_no(row.iv_thrombolysis))
+    summary[3].metric("Thrombectomy", yes_no(row.thrombectomy))
+
+    status_text = row.review_status
+    if status_text == "Complete":
+        st.success("Review status: Complete")
+    elif status_text == "Needs source review":
+        st.warning("Review status: Needs source review")
+    else:
+        st.info(f"Review status: {status_text}")
+
     if len(patient_episodes) > 1:
         st.info(
             f"This synthetic patient has {len(patient_episodes)} stroke episodes. "
-            "The interface keeps patient identity separate from episode-level data."
+            "Patient-level identity is kept separate from episode-level data."
         )
 
-    st.subheader("Episode summary")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("NIHSS admission", int(row.nihss_admit))
-    c2.metric("mRS discharge", int(row.mrs_discharge))
-    c3.metric("IV thrombolysis", yes_no(row.iv_thrombolysis))
-    c4.metric("Thrombectomy", yes_no(row.thrombectomy))
-    c5.metric("Review status", row.review_status)
+    st.subheader("Source review")
+    overview_tab, ehr_tab, registry_tab = st.tabs(
+        ["Compare sources", "Imported EHR data", "Registry review"]
+    )
 
-    imported, registry = st.columns(2)
-    with imported:
-        st.markdown("### PCORI/PCORnet imported fields")
-        st.info("Read-only in the proposed workflow")
-        imported_df = pd.DataFrame(
-            {
-                "Field": [
-                    "PATID",
-                    "ENCOUNTERID",
-                    "Admission",
-                    "Discharge",
-                    "Age",
-                    "Sex",
-                    "Race/ethnicity",
-                    "RUCA",
-                    "LDL",
-                    "Glucose",
-                    "Creatinine",
-                    "Discharge disposition",
-                    "In-hospital death",
-                    "30-day readmission",
-                    "30-day ED revisit",
-                    "90-day mortality",
-                ],
-                "Value": [
-                    row.PATID,
-                    row.ENCOUNTERID,
-                    row.admit_date,
-                    row.discharge_date,
-                    row.age,
-                    row.sex,
-                    row.race_ethnicity,
-                    row.ruca_code,
-                    row.ldl,
-                    row.glucose,
-                    row.creatinine,
-                    row.pcori_discharge_disposition,
-                    yes_no(row.death_in_hospital),
-                    yes_no(row.readmission_30d),
-                    yes_no(row.ed_revisit_30d),
-                    yes_no(row.mortality_90d),
-                ],
-            }
+    with overview_tab:
+        st.caption(
+            "Values from different sources remain visible rather than being silently overwritten."
         )
-        st.dataframe(imported_df, hide_index=True, use_container_width=True)
-
-    with registry:
-        st.markdown("### Stroke registry / GWTG fields")
-        st.success("Editable demonstration fields")
-        key_prefix = f"case_{selected}_"
-        stroke_type = st.selectbox(
-            "Stroke type",
-            ["Ischemic stroke", "TIA", "ICH", "SAH"],
-            index=["Ischemic stroke", "TIA", "ICH", "SAH"].index(row.stroke_type),
-            key=key_prefix + "stroke_type",
+        st.dataframe(
+            _source_overview(row),
+            hide_index=True,
+            use_container_width=True,
+            height=175,
+            column_config={
+                "Concept": st.column_config.TextColumn("Concept", width="medium"),
+                "PCORI/PCORnet": st.column_config.TextColumn(
+                    "PCORI/PCORnet (read-only)", width="large"
+                ),
+                "Registry/GWTG": st.column_config.TextColumn(
+                    "Registry/GWTG", width="large"
+                ),
+                "Status": st.column_config.TextColumn("Status", width="medium"),
+            },
         )
-        nihss = st.number_input(
-            "NIHSS on admission",
-            min_value=0,
-            max_value=42,
-            value=int(row.nihss_admit),
-            key=key_prefix + "nihss",
-        )
-        mrs = st.number_input(
-            "mRS at discharge",
-            min_value=0,
-            max_value=6,
-            value=int(row.mrs_discharge),
-            key=key_prefix + "mrs",
-        )
-        ivt = st.checkbox(
-            "IV thrombolysis",
-            value=bool(row.iv_thrombolysis),
-            key=key_prefix + "ivt",
-        )
-        evt = st.checkbox(
-            "Mechanical thrombectomy",
-            value=bool(row.thrombectomy),
-            key=key_prefix + "evt",
-        )
-        disposition_options = [
-            "Home",
-            "Home health",
-            "Inpatient rehab",
-            "Skilled nursing facility",
-            "Hospice",
-            "Expired",
-        ]
-        disposition = st.selectbox(
-            "Registry discharge disposition",
-            disposition_options,
-            index=disposition_options.index(row.registry_discharge_disposition),
-            key=key_prefix + "disposition",
-        )
-        note = st.text_area("Registry reviewer note", key=key_prefix + "note")
-
         if row.disposition_conflict:
             st.warning(
-                "Source disagreement: PCORI/PCORnet and registry discharge disposition "
-                "do not match. A reviewer should reconcile the registry value without "
-                "overwriting the imported source value."
+                "The discharge-disposition values disagree. The registry reviewer can "
+                "resolve the registry value while the imported EHR value remains preserved."
             )
 
-        if st.button("Save demo edit", type="primary"):
+    with ehr_tab:
+        st.info("Imported values are read-only in the proposed workflow.")
+        st.dataframe(
+            _ehr_details(row),
+            hide_index=True,
+            use_container_width=True,
+            height=515,
+            column_config={
+                "Field": st.column_config.TextColumn("Field", width="medium"),
+                "Value": st.column_config.TextColumn("Value", width="large"),
+            },
+        )
+
+    with registry_tab:
+        st.success("Editable demonstration fields")
+        key_prefix = f"case_{selected}_"
+        with st.form(key=key_prefix + "registry_form"):
+            form_left, form_right = st.columns(2)
+            with form_left:
+                stroke_type = st.selectbox(
+                    "Stroke type",
+                    ["Ischemic stroke", "TIA", "ICH", "SAH"],
+                    index=["Ischemic stroke", "TIA", "ICH", "SAH"].index(
+                        row.stroke_type
+                    ),
+                    key=key_prefix + "stroke_type",
+                )
+                nihss = st.number_input(
+                    "NIHSS on admission",
+                    min_value=0,
+                    max_value=42,
+                    value=int(row.nihss_admit),
+                    key=key_prefix + "nihss",
+                )
+                mrs = st.number_input(
+                    "mRS at discharge",
+                    min_value=0,
+                    max_value=6,
+                    value=int(row.mrs_discharge),
+                    key=key_prefix + "mrs",
+                )
+            with form_right:
+                ivt = st.checkbox(
+                    "IV thrombolysis",
+                    value=bool(row.iv_thrombolysis),
+                    key=key_prefix + "ivt",
+                )
+                evt = st.checkbox(
+                    "Mechanical thrombectomy",
+                    value=bool(row.thrombectomy),
+                    key=key_prefix + "evt",
+                )
+                disposition_options = [
+                    "Home",
+                    "Home health",
+                    "Inpatient rehab",
+                    "Skilled nursing facility",
+                    "Hospice",
+                    "Expired",
+                ]
+                disposition = st.selectbox(
+                    "Registry discharge disposition",
+                    disposition_options,
+                    index=disposition_options.index(
+                        row.registry_discharge_disposition
+                    ),
+                    key=key_prefix + "disposition",
+                )
+
+            note = st.text_area(
+                "Registry reviewer note",
+                key=key_prefix + "note",
+                placeholder="Optional note about abstraction or source reconciliation",
+            )
+            submitted = st.form_submit_button("Save demo edit", type="primary")
+
+        if submitted:
             st.session_state[key_prefix + "saved"] = {
                 "stroke_type": stroke_type,
                 "nihss_admit": nihss,
@@ -283,18 +502,17 @@ def case_browser(df: pd.DataFrame) -> None:
             )
 
     st.subheader("Follow-up")
-    f1, f2, f3 = st.columns(3)
-    f1.metric("Follow-up completed", yes_no(row.followup_completed))
-    f2.metric(
+    follow = st.columns(3)
+    follow[0].metric("Follow-up completed", yes_no(row.followup_completed))
+    follow[1].metric(
         "90-day mRS",
         "Not available" if pd.isna(row.mrs_90d) else int(row.mrs_90d),
     )
-    f3.metric("90-day mortality", yes_no(row.mortality_90d))
+    follow[2].metric("90-day mortality", yes_no(row.mortality_90d))
 
     if len(patient_episodes) > 1:
-        st.subheader("Other episodes for this synthetic patient")
-        st.dataframe(
-            patient_episodes[
+        with st.expander("Other episodes for this synthetic patient"):
+            other = patient_episodes[
                 [
                     "ENCOUNTERID",
                     "FIN",
@@ -303,29 +521,41 @@ def case_browser(df: pd.DataFrame) -> None:
                     "nihss_admit",
                     "registry_discharge_disposition",
                 ]
-            ],
-            hide_index=True,
-            use_container_width=True,
-        )
+            ].copy()
+            other["admit_date"] = pd.to_datetime(other["admit_date"]).dt.strftime(
+                "%Y-%m-%d"
+            )
+            other = other.rename(
+                columns={
+                    "ENCOUNTERID": "ENCOUNTERID",
+                    "FIN": "FIN",
+                    "admit_date": "Admission",
+                    "stroke_type": "Stroke type",
+                    "nihss_admit": "NIHSS",
+                    "registry_discharge_disposition": "Registry disposition",
+                }
+            )
+            st.dataframe(other, hide_index=True, use_container_width=True)
+
+
+REPORT_INFO = {
+    "Registry work queue": "Cases that still need source reconciliation or follow-up.",
+    "Source disagreements": "Cases where PCORI/PCORnet and registry discharge disposition differ.",
+    "Cases needing follow-up": "Living patients whose follow-up is not yet completed.",
+    "Missing 90-day mRS": "Living patients without an available 90-day mRS.",
+    "Thrombolysis cases": "Episodes with IV thrombolysis.",
+    "Thrombectomy cases": "Episodes with mechanical thrombectomy.",
+    "Rural stroke cases": "Episodes classified as rural using the synthetic RUCA field.",
+    "30-day readmissions": "Episodes followed by a synthetic 30-day readmission.",
+}
 
 
 def reports(df: pd.DataFrame) -> None:
     st.title("Reports")
     st.caption("Example operational reports for collaborator discussion")
 
-    report = st.selectbox(
-        "Report",
-        [
-            "Registry work queue",
-            "Source disagreements",
-            "Cases needing follow-up",
-            "Missing 90-day mRS",
-            "Thrombolysis cases",
-            "Thrombectomy cases",
-            "Rural stroke cases",
-            "30-day readmissions",
-        ],
-    )
+    report = st.selectbox("Report", list(REPORT_INFO))
+    st.info(REPORT_INFO[report])
 
     if report == "Registry work queue":
         out = df[df.review_status != "Complete"]
@@ -344,52 +574,108 @@ def reports(df: pd.DataFrame) -> None:
     else:
         out = df[df.readmission_30d]
 
-    st.metric("Cases", len(out))
+    st.metric("Cases in report", len(out))
+
+    display = out[
+        [
+            "synthetic_patient_name",
+            "PATID",
+            "FIN",
+            "stroke_type",
+            "admit_date",
+            "nihss_admit",
+            "registry_discharge_disposition",
+            "review_status",
+            "followup_completed",
+            "mrs_90d",
+        ]
+    ].copy()
+    display["admit_date"] = pd.to_datetime(display["admit_date"]).dt.strftime("%Y-%m-%d")
+    display["followup_completed"] = display["followup_completed"].map(yes_no)
+    display = display.rename(
+        columns={
+            "synthetic_patient_name": "Patient",
+            "stroke_type": "Stroke type",
+            "admit_date": "Admission",
+            "nihss_admit": "NIHSS",
+            "registry_discharge_disposition": "Registry disposition",
+            "review_status": "Review status",
+            "followup_completed": "Follow-up",
+            "mrs_90d": "90-day mRS",
+        }
+    )
+
     st.dataframe(
-        out[
-            [
-                "synthetic_patient_name",
-                "PATID",
-                "FIN",
-                "stroke_type",
-                "admit_date",
-                "nihss_admit",
-                "iv_thrombolysis",
-                "thrombectomy",
-                "pcori_discharge_disposition",
-                "registry_discharge_disposition",
-                "review_status",
-                "followup_completed",
-                "mrs_90d",
-            ]
-        ],
+        display,
         hide_index=True,
         use_container_width=True,
+        height=430,
+        column_config={
+            "Patient": st.column_config.TextColumn("Patient", width="medium"),
+            "PATID": st.column_config.TextColumn("PATID", width="small"),
+            "FIN": st.column_config.TextColumn("FIN", width="small"),
+            "Stroke type": st.column_config.TextColumn("Stroke type", width="medium"),
+            "Admission": st.column_config.TextColumn("Admission", width="small"),
+            "NIHSS": st.column_config.NumberColumn("NIHSS", width="small"),
+            "Registry disposition": st.column_config.TextColumn(
+                "Registry disposition", width="medium"
+            ),
+            "Review status": st.column_config.TextColumn(
+                "Review status", width="medium"
+            ),
+            "Follow-up": st.column_config.TextColumn("Follow-up", width="small"),
+            "90-day mRS": st.column_config.NumberColumn("90-day mRS", width="small"),
+        },
+    )
+
+    csv_bytes = display.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "Download this report (CSV)",
+        data=csv_bytes,
+        file_name=report.lower().replace(" ", "_").replace("-", "_") + ".csv",
+        mime="text/csv",
     )
 
 
 def workflow() -> None:
     st.title("Proposed Workflow")
-    st.markdown(
-        """
-**1. Identify the stroke episode.** The patient is represented by PATID in the
-PCORI/PCORnet layer and by authorized clinical identifiers in the operational registry.
-The stroke episode is anchored by ENCOUNTERID plus FIN/admission-discharge dates.
-
-**2. Import selected EHR context.** Selected PCORI/PCORnet-derived values are
-synchronized into the REDCap-facing workflow as read-only source values.
-
-**3. Review registry/GWTG fields.** Stroke Program staff review, complete, and update
-registry fields for the selected episode.
-
-**4. Reconcile without overwriting provenance.** When a concept exists in both sources,
-the interface displays both values. Registry review can resolve the operational value
-while the original imported EHR value remains preserved.
-
-**5. Follow cases and report.** Work queues identify missing follow-up, source
-disagreements, treatment cohorts, rural cases, and utilization outcomes.
-"""
+    st.caption(
+        "The prototype keeps imported EHR context and registry abstraction connected "
+        "without erasing source provenance."
     )
+
+    steps = [
+        (
+            "1. Identify the stroke episode",
+            "Link the patient and episode across PCORI/PCORnet and the operational registry "
+            "using approved identifiers and encounter/date context.",
+        ),
+        (
+            "2. Import selected EHR context",
+            "Synchronize only the selected stroke-relevant PCORI/PCORnet values needed for "
+            "review and reporting; keep them read-only.",
+        ),
+        (
+            "3. Review registry/GWTG fields",
+            "Stroke Program staff review, complete, and update registry fields for the "
+            "selected episode.",
+        ),
+        (
+            "4. Reconcile without overwriting provenance",
+            "When sources disagree, display both values. Resolve the registry value while "
+            "preserving the original imported EHR value.",
+        ),
+        (
+            "5. Follow cases and report",
+            "Use work queues for missing follow-up, source disagreements, treatment cohorts, "
+            "rural cases, and utilization outcomes.",
+        ),
+    ]
+    for heading, body in steps:
+        with st.container(border=True):
+            st.markdown(f"**{heading}**")
+            st.write(body)
+
     st.info(
         "This prototype demonstrates workflow and field behavior only. It is not a "
         "production REDCap implementation and contains no real patient data."
@@ -398,10 +684,69 @@ disagreements, treatment cohorts, rural cases, and utilization outcomes.
 
 def data_dictionary(mapping: pd.DataFrame) -> None:
     st.title("Prototype Data Dictionary")
-    st.caption("Focused v0.1 mapping; not the complete PCORnet/GWTG source inventory")
-    st.dataframe(mapping, hide_index=True, use_container_width=True)
+    st.caption(
+        "Focused prototype mapping. This is not the complete PCORnet/GWTG source inventory."
+    )
+
+    filter_left, filter_right = st.columns(2)
+    domains = ["All"] + sorted(mapping["domain"].dropna().unique().tolist())
+    sources = ["All"] + sorted(mapping["source_layer"].dropna().unique().tolist())
+    with filter_left:
+        domain = st.selectbox("Domain", domains)
+    with filter_right:
+        source = st.selectbox("Source layer", sources)
+
+    shown = mapping.copy()
+    if domain != "All":
+        shown = shown[shown["domain"] == domain]
+    if source != "All":
+        shown = shown[shown["source_layer"] == source]
+
+    display = shown.rename(
+        columns={
+            "concept": "Concept",
+            "demo_field": "Prototype field",
+            "source_layer": "Source layer",
+            "source_field": "Source field",
+            "editable_in_demo": "Editable",
+            "domain": "Domain",
+        }
+    ).copy()
+    display["Editable"] = display["Editable"].str.capitalize()
+
+    st.metric("Fields shown", len(display))
+    st.dataframe(
+        display[
+            [
+                "Concept",
+                "Prototype field",
+                "Source layer",
+                "Source field",
+                "Editable",
+                "Domain",
+            ]
+        ],
+        hide_index=True,
+        use_container_width=True,
+        height=520,
+        column_config={
+            "Concept": st.column_config.TextColumn("Concept", width="medium"),
+            "Prototype field": st.column_config.TextColumn(
+                "Prototype field", width="medium"
+            ),
+            "Source layer": st.column_config.TextColumn(
+                "Source layer", width="medium"
+            ),
+            "Source field": st.column_config.TextColumn(
+                "Source field", width="large"
+            ),
+            "Editable": st.column_config.TextColumn("Editable", width="small"),
+            "Domain": st.column_config.TextColumn("Domain", width="medium"),
+        },
+    )
 
 
+apply_ui_style()
 df = load_data()
 mapping = load_mapping()
 
@@ -409,7 +754,9 @@ page = st.sidebar.radio(
     "Navigate",
     ["Dashboard", "Case Browser", "Reports", "Workflow", "Data Dictionary"],
 )
-st.sidebar.warning("Synthetic demonstration data only")
+st.sidebar.divider()
+st.sidebar.caption("Synthetic demonstration data only")
+st.sidebar.caption("No real patient data or PHI")
 
 if page == "Dashboard":
     dashboard(df)
