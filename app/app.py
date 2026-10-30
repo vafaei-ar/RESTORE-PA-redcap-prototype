@@ -8,12 +8,16 @@ import streamlit as st
 
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+APP_DIR = Path(__file__).resolve().parent
+# Streamlit executes app/app.py as a script. Import sibling modules directly,
+# instead of treating "app" as a package, to avoid the app.py name collision.
+for directory in (ROOT, APP_DIR):
+    if str(directory) not in sys.path:
+        sys.path.insert(0, str(directory))
 
 from synthetic_data.generate_demo_data import generate_demo_data
-from app.registry_store import update_episode
-from app.registry_entry import registry_entry_page
+from registry_store import update_episode
+from registry_entry import registry_entry_page
 
 DATA_PATH = ROOT / "synthetic_data" / "outputs" / "combined_demo.parquet"
 MAPPING_PATH = ROOT / "data_model" / "field_mapping.csv"
