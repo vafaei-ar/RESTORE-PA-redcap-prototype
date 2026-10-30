@@ -75,8 +75,11 @@ def _validate(fields: dict) -> None:
         raise ValueError("Enter a 90-day mRS if follow-up is marked complete.")
     if mrs_90d is not None and not 0 <= int(mrs_90d) <= 6:
         raise ValueError("90-day mRS must be between 0 and 6.")
-    if not followup_done and mrs_90d is not None:
-        raise ValueError("Leave 90-day mRS blank until follow-up is completed.")
+    if not followup_done and mrs_90d is not None and int(mrs_90d) != 6:
+        raise ValueError(
+            "Without completed follow-up, 90-day mRS must be blank "
+            "(except score 6 for a separately recorded death)."
+        )
     if disposition == "Expired" and followup_done:
         raise ValueError("An in-hospital death cannot have completed 90-day follow-up.")
 
